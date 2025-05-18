@@ -3,6 +3,7 @@ import time
 import json
 import platform
 import requests
+import subprocess
 from datetime import datetime
 
 API_URL = "https://your-backend-server.com/report"
@@ -22,16 +23,60 @@ def get_machine_id():
 
 # Functions for system checks (platform-specific logic would be added per OS)
 def check_disk_encryption():
-    return "Unknown"  # Placeholder
+    os_name = platform.system()
+    try:
+        if os_name == "Windows":
+            output = subprocess.check_output("manage-bde -status", shell=True).decode()
+            return "On" if "Percentage Encrypted: 100%" in output else "Off"
+        elif os_name == "Linux":
+            return "Encrypted" if os.path.exists("/dev/mapper") else "Unencrypted"
+        else:
+            return "Unknown"
+    except Exception as e:
+        return e
 
 def check_os_update_status():
-    return "Unknown"  # Placeholder
+    os_name = platform.system()
+    try:
+        if os_name == "Windows":
+            return "Check manually"  # Windows update status requires PowerShell
+        elif os_name == "Linux":
+            output = subprocess.check_output(["apt", "list", "--upgradable"]).decode()
+            return "Up-to-date" if "Listing... Done" in output and len(output.strip().splitlines()) == 1 else "Outdated"
+        else:
+            return "Unknown"
+    except Exception as e:
+        return e
+
 
 def check_antivirus_status():
-    return "Unknown"  # Placeholder
+    os_name = platform.system()
+    try:
+        if os_name == "Windows":
+            output = subprocess.check_output('"C:\\Program Files\\Windows Defender\\MpCmdRun.exe" -GetAVStatus', shell=True).decode()
+            return "Active" if "Enabled" in output else "Inactive"
+        elif os_name == "Linux":
+            output = subprocess.getoutput("systemctl is-active clamav-daemon")
+            return "Active" if "active" in output else "Inactive"
+        else:
+            return "Unknown"
+    except Exception as e:
+        return e
 
 def check_inactivity_sleep():
-    return "Unknown"  # Placeholder
+    os_name = platform.system()
+    try:
+        if os_name == "Windows":
+            output = subprocess.check_output("powercfg -query", shell=True).decode()
+            return "10" in output or "600" in output
+        elif os_name == "Linux":
+            output = subprocess.getoutput("gsettings get org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout")
+            sleep_time = int(output.strip())
+            return sleep_time <= 600
+        else:
+            return "Unknown"
+    except Exception as e:
+        return e
 
 def collect_status():
     return {
